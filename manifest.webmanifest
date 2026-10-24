@@ -1,0 +1,14 @@
+{
+  "name": "Задания 25-ПРО-1",
+  "short_name": "Задания",
+  "description": "Задания, лекции и файлы группы 25-ПРО-1",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f2f2f7",
+  "theme_color": "#f2f2f7",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
