@@ -1,0 +1,71 @@
+rules_version = '2';
+
+// Задания 25-ПРО-1 — Firestore Security Rules.
+// Roles: admin (one Google account), approved students, pending/blocked users.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email == 'rahatulyerbolat05@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    function isApproved() {
+      return isAdmin()
+        || (signedIn()
+            && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'approved');
+    }
+    function shortString(v, max) {
+      return v is string && v.size() <= max;
+    }
+
+    // Profiles: a user creates their own as "pending"; only admin changes status.
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'email', 'photo', 'status', 'createdAt', 'lastSeen'])
+        && request.resource.data.status == 'pending'
+        && request.resource.data.email == request.auth.token.email
+        && shortString(request.resource.data.name, 100)
+        && shortString(request.resource.data.photo, 500)
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.lastSeen == request.time;
+      allow update: if isAdmin()
+        || (signedIn() && request.auth.uid == uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeen', 'name', 'photo'])
+            && request.resource.data.lastSeen == request.time
+            && shortString(request.resource.data.name, 100)
+            && shortString(request.resource.data.photo, 500));
+      allow delete: if isAdmin();
+    }
+
+    // Shared course content: approved students read, admin writes.
+    match /catalog/{docId} {
+      allow read: if isApproved();
+      allow write: if isAdmin();
+    }
+    match /bodies/{itemId} {
+      allow read: if isApproved();
+      allow write: if isAdmin();
+    }
+
+    // Personal progress and notes: only the owner (and only once approved).
+    match /progress/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid && isApproved();
+      allow create, update: if signedIn() && request.auth.uid == uid && isApproved()
+        && request.resource.data.keys().hasOnly(['items'])
+        && request.resource.data.items is map
+        && request.resource.data.items.size() <= 1000;
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Everything else is closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
