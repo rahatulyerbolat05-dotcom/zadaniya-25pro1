@@ -1,0 +1,19 @@
+/* «Кратко» — личный упрощённый курс администратора (см. kratko.js). Только классы: CSP запрещает inline-стили. */
+.kratko .group-title { color: var(--tint); }
+.kratko-card { border-left: 3px solid var(--tint); }
+.kratko-card details,
+.kratko-topic details { margin: var(--s2) 0; padding: var(--s2) var(--s3); border-radius: 10px; background: var(--fill-3); }
+.kratko-card summary,
+.kratko-topic summary { cursor: pointer; font-weight: 600; min-height: 32px; display: flex; align-items: center; gap: var(--s2); list-style: none; }
+.kratko-card summary::-webkit-details-marker,
+.kratko-topic summary::-webkit-details-marker { display: none; }
+.kratko-card summary::before,
+.kratko-topic summary::before { content: "›"; color: var(--tint); font-size: 1.2em; display: inline-block; transition: transform var(--t-fast) var(--ease); }
+.kratko-card details[open] > summary::before,
+.kratko-topic details[open] > summary::before { transform: rotate(90deg); }
+.kratko-card details[open] summary,
+.kratko-topic details[open] summary { margin-bottom: var(--s1); }
+.kratko-open { width: 100%; margin: 0 0 var(--s4); }
+.kratko-topic + .kratko-topic { border-top: 1px solid var(--separator); margin-top: var(--s5); padding-top: var(--s5); }
+.kratko-topic-title { margin: 0 0 var(--s2); font-size: var(--fs-headline); }
+.kratko-topic-title a { color: var(--tint); text-decoration: none; }
