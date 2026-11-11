@@ -63,6 +63,11 @@ service cloud.firestore {
       allow delete: if signedIn() && request.auth.uid == uid;
     }
 
+    // Admin's personal study notes («Кратко»): only the admin reads and writes.
+    match /private/{docId} {
+      allow read, write: if isAdmin();
+    }
+
     // Everything else is closed.
     match /{document=**} {
       allow read, write: if false;
