@@ -17,3 +17,13 @@
 .kratko-topic + .kratko-topic { border-top: 1px solid var(--separator); margin-top: var(--s5); padding-top: var(--s5); }
 .kratko-topic-title { margin: 0 0 var(--s2); font-size: var(--fs-headline); }
 .kratko-topic-title a { color: var(--tint); text-decoration: none; }
+/* «Личное» — материалы только для администратора */
+.lichnoe .group-title { color: var(--tint); }
+.lichnoe .row-link { padding-left: var(--s4); }
+.lichnoe .row-text { flex: 1; min-width: 0; }
+.lichnoe-chevron { color: var(--label-3, var(--label-2)); font-size: 1.3em; line-height: 1; }
+.lichnoe-meta { margin: 0 0 var(--s3); color: var(--label-2); font-size: var(--fs-foot); }
+.lichnoe-h { margin: var(--s5) 0 var(--s2); font-size: var(--fs-headline); }
+.lichnoe-files { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.lichnoe-files a { color: var(--tint); word-break: break-word; }
+.lichnoe-file-off { color: var(--label-2); word-break: break-word; }

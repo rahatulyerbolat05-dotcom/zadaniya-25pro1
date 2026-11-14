@@ -12,6 +12,13 @@
  * Где видно:
  *  - страница материала `#/i/<id>` — карточка «Кратко» над файлами;
  *  - страница предмета `#/s/<id>` — кнопка «Кратко по предмету», открывает все темы подряд.
+ *
+ * «Личное» — материалы, которые есть только у администратора (например, присланные куратором лично,
+ * а не в общий чат). Firestore `private/item_<id>` = { kind: 'item', itemId, subj, subjCode, kindLabel,
+ * type, title, date, pair, summary, hasTask, md, task, files: [{ name, url? }], order }.
+ * Поле предмета названо `subj`, чтобы такие документы не попадали в запрос «Кратко по предмету».
+ * Видно: раздел «Личное» на главной (задания) и на странице предмета; `#/i/<id>` личного материала
+ * открывает его в листе поверх страницы.
  */
 
 const FIREBASE_VERSION = '12.19.0';
@@ -35,6 +42,12 @@ const subjectCache = new Map();
 let libs = null;
 let pending = 0;
 let renderSeq = 0;
+/** @type {any[] | null} личные материалы, отсортированные по order */
+let privItems = null;
+let privSeq = 0;
+let openPrivId = '';
+/** @type {HTMLDialogElement | null} */
+let privDialog = null;
 
 const sleep = (/** @type {number} */ ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -99,6 +112,7 @@ async function getSubject(subjectId) {
 
 function currentKey() {
   const hash = location.hash || '';
+  if (hash === '' || hash === '#' || hash === '#/') return { kind: 'home', id: 'tasks' };
   const item = hash.match(/^#\/i\/([^/?#]+)/);
   if (item) return { kind: 'item', id: decodeURIComponent(item[1]) };
   const subj = hash.match(/^#\/s\/([^/?#]+)/);
@@ -113,7 +127,7 @@ async function render() {
   for (const node of Array.from(document.querySelectorAll('[data-kratko]'))) {
     if (/** @type {HTMLElement} */ (node).dataset.kratko !== want) node.remove();
   }
-  if (!want || !key || document.querySelector(`[data-kratko="${CSS.escape(want)}"]`)) return;
+  if (!want || !key || key.kind === 'home' || document.querySelector(`[data-kratko="${CSS.escape(want)}"]`)) return;
   try {
     if (key.kind === 'item') {
       const page = document.querySelector('.item-page');
@@ -180,7 +194,118 @@ function schedule() {
   pending = window.setTimeout(() => {
     pending = 0;
     void render();
+    void renderPrivate();
   }, 60);
+}
+
+/* ---------- Личное: материалы, которые видит только администратор ---------- */
+
+async function getPrivItems() {
+  if (privItems) return privItems;
+  if (!fb) return [];
+  const { fs, db } = fb;
+  const snap = await fs.getDocs(fs.query(fs.collection(db, 'private'), fs.where('kind', '==', 'item')));
+  /** @type {any[]} */
+  const docs = [];
+  snap.forEach((/** @type {any} */ d) => docs.push(d.data()));
+  docs.sort((a, b) => String(a.order || '').localeCompare(String(b.order || '')));
+  privItems = docs;
+  return docs;
+}
+
+/** @param {string} iso */
+function shortDate(iso) {
+  const m = /^\d{4}-(\d{2})-(\d{2})/.exec(iso || '');
+  return m ? `${m[2]}.${m[1]}` : '';
+}
+
+/** @param {any} x @param {boolean} withSubject */
+function privMeta(x, withSubject) {
+  return [withSubject ? x.subjCode : '', x.kindLabel, shortDate(x.date)].filter(Boolean).join(' · ');
+}
+
+async function renderPrivate() {
+  const seq = ++privSeq;
+  const key = currentKey();
+  if (privDialog && (!key || key.kind !== 'item' || key.id !== openPrivId)) privDialog.close();
+  const want = enabled && key && (key.kind === 'subj' || key.kind === 'home') ? `${key.kind}:${key.id}` : '';
+  for (const node of Array.from(document.querySelectorAll('[data-lichnoe]'))) {
+    if (/** @type {HTMLElement} */ (node).dataset.lichnoe !== want) node.remove();
+  }
+  try {
+    if (enabled && key && key.kind === 'item') {
+      if (openPrivId === key.id) return;
+      const it = (await getPrivItems()).find((x) => x.itemId === key.id);
+      if (!it || seq !== privSeq || openPrivId === key.id) return;
+      openPrivId = key.id;
+      await openPrivate(it);
+      return;
+    }
+    if (!want || !key || document.querySelector(`[data-lichnoe="${CSS.escape(want)}"]`)) return;
+    const list = document.querySelector('.page .list-area');
+    if (!list) return;
+    const all = await getPrivItems();
+    const items = key.kind === 'subj' ? all.filter((x) => x.subj === key.id) : all.filter((x) => x.hasTask);
+    if (!items.length || seq !== privSeq || document.querySelector(`[data-lichnoe="${CSS.escape(want)}"]`) || !list.isConnected) return;
+    const rows = items.map((x) => el('li', { class: 'row item-row' }, [
+      el('a', { class: 'row-link', href: `#/i/${encodeURIComponent(x.itemId)}` }, [
+        el('span', { class: 'row-text' }, [
+          el('span', { class: 'row-title' }, [x.title || x.itemId]),
+          el('span', { class: 'row-meta' }, [privMeta(x, key.kind === 'home')]),
+        ]),
+        el('span', { class: 'lichnoe-chevron', 'aria-hidden': 'true' }, ['›']),
+      ]),
+    ]));
+    list.before(el('section', { class: 'group-section lichnoe', 'data-lichnoe': want }, [
+      el('h2', { class: 'group-title' }, ['Личное · видишь только ты']),
+      el('ul', { class: 'group', role: 'list' }, rows),
+    ]));
+  } catch (e) {
+    console.warn('[kratko] private', e);
+  }
+}
+
+/** @param {any} it */
+async function openPrivate(it) {
+  const body = el('div', { class: 'sheet-body lichnoe-sheet-body' });
+  const close = el('button', { type: 'button', class: 'btn btn-plain btn-small' }, ['Готово']);
+  const dialog = /** @type {HTMLDialogElement} */ (el('dialog', { class: 'sheet lichnoe-sheet', 'aria-label': it.title || 'Личный материал' }, [
+    el('div', { class: 'sheet-grabber', 'aria-hidden': 'true' }),
+    el('div', { class: 'sheet-header' }, [el('h2', { class: 'sheet-title' }, [it.title || it.itemId]), close]),
+    body,
+  ]));
+  privDialog = dialog;
+  close.addEventListener('click', () => dialog.close());
+  dialog.addEventListener('close', () => {
+    dialog.remove();
+    if (privDialog === dialog) privDialog = null;
+    const wasOpen = openPrivId;
+    openPrivId = '';
+    if (location.hash === `#/i/${encodeURIComponent(wasOpen)}` || location.hash === `#/i/${wasOpen}`) location.hash = `#/s/${it.subj}`;
+  });
+  document.body.append(dialog);
+  dialog.showModal();
+  body.append(el('p', { class: 'lichnoe-meta' }, [[it.subjCode, it.kindLabel, shortDate(it.date), it.pair].filter(Boolean).join(' · '), ' · только у тебя']));
+  if (Array.isArray(it.files) && it.files.length) {
+    const ul = el('ul', { class: 'lichnoe-files', role: 'list' });
+    for (const f of it.files) {
+      ul.append(el('li', {}, [f.url && /^https:\/\//.test(f.url)
+        ? el('a', { href: f.url, target: '_blank', rel: 'noopener noreferrer' }, [f.name])
+        : el('span', { class: 'lichnoe-file-off' }, [f.name, ' — в Obsidian'])]));
+    }
+    body.append(el('h3', { class: 'lichnoe-h' }, ['Файлы']), ul);
+  }
+  const kr = await getItem(it.itemId).catch(() => null);
+  if (kr && kr.md) {
+    const k = el('div', { class: 'prose' });
+    k.innerHTML = await toHtml(kr.md); // sanitised by DOMPurify
+    body.append(el('h3', { class: 'lichnoe-h' }, ['Кратко']), el('div', { class: 'card kratko-card' }, [k]));
+  }
+  if (it.md) {
+    const p = el('div', { class: 'prose' });
+    p.innerHTML = await toHtml(it.md); // sanitised by DOMPurify
+    body.append(el('h3', { class: 'lichnoe-h' }, [it.hasTask ? 'Задание и материал' : 'Конспект']), el('div', { class: 'card' }, [p]));
+  }
 }
 
 async function init() {
@@ -198,6 +323,7 @@ async function init() {
     if (enabled && !fb) fb = { db: fsMod.getFirestore(app), fs: fsMod };
     itemCache.clear();
     subjectCache.clear();
+    privItems = null;
     schedule();
   });
   window.addEventListener('hashchange', schedule);
