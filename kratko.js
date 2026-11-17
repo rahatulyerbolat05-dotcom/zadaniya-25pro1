@@ -148,7 +148,7 @@ async function render() {
       body.innerHTML = await toHtml(data.md); // sanitised by DOMPurify
       if (seq !== renderSeq || !header.isConnected) return;
       const section = el('section', { class: 'group-section kratko', 'data-kratko': want }, [
-        el('h2', { class: 'group-title' }, [administrator ? 'Кратко · видишь только ты' : 'Кратко · полная база']),
+        el('h2', { class: 'group-title' }, [administrator ? 'Кратко · твоя учебная база' : 'Кратко · полная база']),
         el('div', { class: 'card kratko-card' }, [body]),
       ]);
       const summary = page.querySelector('.card.summary');
@@ -272,7 +272,7 @@ async function renderPrivate() {
       ]),
     ]));
     list.before(el('section', { class: 'group-section lichnoe', 'data-lichnoe': want }, [
-      el('h2', { class: 'group-title' }, [administrator ? 'Личное · видишь только ты' : 'Дополнительные материалы · полная база']),
+      el('h2', { class: 'group-title' }, [administrator ? 'Личное · твоя учебная база' : 'Дополнительные материалы · полная база']),
       el('ul', { class: 'group', role: 'list' }, rows),
     ]));
   } catch (e) {
@@ -302,7 +302,7 @@ async function openPrivate(it) {
   });
   document.body.append(dialog);
   dialog.showModal();
-  body.append(el('p', { class: 'lichnoe-meta' }, [[it.subjCode, it.kindLabel, shortDate(it.date), it.pair].filter(Boolean).join(' · '), administrator ? ' · только у тебя' : ' · полная база']));
+  body.append(el('p', { class: 'lichnoe-meta' }, [[it.subjCode, it.kindLabel, shortDate(it.date), it.pair].filter(Boolean).join(' · '), administrator ? ' · твоя учебная база' : ' · полная база']));
   if (Array.isArray(it.files) && it.files.length) {
     const ul = el('ul', { class: 'lichnoe-files', role: 'list' });
     for (const f of it.files) {
