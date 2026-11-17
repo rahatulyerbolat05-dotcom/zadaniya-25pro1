@@ -38,7 +38,7 @@ try{localStorage.setItem(s,JSON.stringify(a))}catch{}i.forEach(u=>u())},o=u=>(i.
 k=>setTimeout(k,u));return{kind:"fake",onAuth(u){let k=null;return o(()=>{k!==a.signedIn&&(k=a.signedIn,u(a.signedIn?{...n,emailVerified:!0}:null))})},async signIn(){await f(),a.signedIn=!0,r()},async signOut(){a.signedIn=!1,r()},async ensureProfile(u){a.users[u.uid]||(a.users[u.uid]={name:u.name,email:u.
 email,photo:u.photo,status:"pending",createdAt:Date.now()}),r()},watchProfile(u,k){return o(()=>k(a.users[u]?{uid:u,...a.users[u]}:null))},watchCatalog(u,k){return o(()=>d()?u(a.catalog):k?.(c()))},async getBody(u){if(await f(120),!d())throw c();return a.bodies[u]||null},watchProgress(u,k,M){return o(
 ()=>d()?k(a.progress[u]||{}):M?.(c()))},async setStatus(u,k,M){if(!d())throw c();a.progress[u]=a.progress[u]||{},a.progress[u][k]={...a.progress[u][k]||{},s:M,t:Date.now()},r()},async setNote(u,k,M){if(!d())throw c();a.progress[u]=a.progress[u]||{},a.progress[u][k]={...a.progress[u][k]||{},n:M,t:Date.
-now()},r()},watchUsers(u,k){return o(()=>l()?u(Object.entries(a.users).map(([M,E])=>({uid:M,...E}))):k?.(c()))},async setUserStatus(u,k){if(!l())throw c();a.users[u]={...a.users[u]||{},status:k},r()},async importData(u,k){if(!l())throw c();let{subjects:M,items:E,files:b,bodies:m,appendSubjects:extraSubjects}=X(u);extraSubjects&&(a.catalog.subjects=mergeImportedSubjects(a.catalog.subjects,extraSubjects)),M&&(a.catalog.
+now()},r()},watchUsers(u,k){return o(()=>l()?u(Object.entries(a.users).map(([M,E])=>({uid:M,...E}))):k?.(c()))},async setUserStatus(u,k){if(!l())throw c();a.users[u]={...a.users[u]||{},status:k},r()},async setLibraryAccess(u,k){if(!l())throw c();if(typeof k!=="boolean"||!a.users[u])throw new Error("Invalid library access update");a.users[u]={...a.users[u],fullLibraryAccess:k};r()},async importData(u,k){if(!l())throw c();let{subjects:M,items:E,files:b,bodies:m,appendSubjects:extraSubjects}=X(u);extraSubjects&&(a.catalog.subjects=mergeImportedSubjects(a.catalog.subjects,extraSubjects)),M&&(a.catalog.
 subjects=M),a.catalog.items={...a.catalog.items,...E},b&&(a.catalog.files={...a.catalog.files||{},...b});for(let j of m)a.bodies[j.id]={md:j.md,task:j.task};return k?.(m.length+1,m.length+1),r(),{items:Object.keys(E).length,bodies:m.length,files:b?Object.keys(b).length:0}},async updateItem(u,k){if(!l())
 throw c();a.catalog.items[u]={...a.catalog.items[u]||{},...k},r()}}}var Vt=at(()=>{"use strict";R();P()});var Ft={};Et(Ft,{createFirebaseBackend:()=>Se});async function Se(){let[t,s,a]=await Promise.all([import(G.firebaseApp),import(G.firebaseAuth),import(G.firebaseFirestore)]),n=t.initializeApp(It),i=s.getAuth(n);i.languageCode="ru";let r;try{r=a.initializeFirestore(n,{localCache:a.persistentLocalCache(
 {tabManager:a.persistentMultipleTabManager()})})}catch{r=a.getFirestore(n)}let{doc:o,getDoc:l,setDoc:d,updateDoc:c,onSnapshot:f,collection:v,query:u,orderBy:k,writeBatch:M,serverTimestamp:E}=a,b=o(r,"catalog","main"),m=p=>p?{uid:p.uid,name:p.displayName||p.email||"Студент",email:p.email||"",photo:p.
@@ -47,7 +47,7 @@ let y=g?.code||"";if(y==="auth/popup-blocked"||y==="auth/operation-not-supported
 users",p.uid),y=await l(g);if(!y.exists()){await d(g,{name:p.name.slice(0,100),email:p.email,photo:(p.photo||"").slice(0,500),status:"pending",createdAt:E(),lastSeen:E()});return}let S=y.data()?.lastSeen?.toMillis?.()||0;Date.now()-S>6*3600*1e3&&await c(g,{lastSeen:E(),name:p.name.slice(0,100),photo:(p.
 photo||"").slice(0,500)}).catch(()=>{})},watchProfile(p,g,y){return f(o(r,"users",p),S=>g(S.exists()?{uid:p,...S.data()}:null),S=>y?.(S))},watchCatalog(p,g){return f(b,y=>p(y.exists()?y.data():{subjects:[],items:{},files:{}}),y=>g?.(y))},async getBody(p){let g=await l(o(r,"bodies",p));return g.exists()?
 g.data():null},watchProgress(p,g,y){return f(o(r,"progress",p),S=>g(S.exists()&&S.data()?.items||{}),S=>y?.(S))},async setStatus(p,g,y){await d(o(r,"progress",p),{items:{[g]:{s:y,t:Date.now()}}},{merge:!0})},async setNote(p,g,y){await d(o(r,"progress",p),{items:{[g]:{n:y,t:Date.now()}}},{merge:!0})},
-watchUsers(p,g){return f(u(v(r,"users"),k("createdAt","desc")),y=>p(y.docs.map(S=>({uid:S.id,...S.data()}))),y=>g?.(y))},async setUserStatus(p,g){await c(o(r,"users",p),{status:g})},async importData(p,g){let{subjects:y,items:S,files:A,bodies:L,appendSubjects:extraSubjects}=X(p),$={updatedAt:E(),version:1};if(extraSubjects){let current=await l(b);$.subjects=mergeImportedSubjects(current.exists()?current.data().subjects:[],extraSubjects)}y&&($.subjects=y),Object.
+watchUsers(p,g){return f(u(v(r,"users"),k("createdAt","desc")),y=>p(y.docs.map(S=>({uid:S.id,...S.data()}))),y=>g?.(y))},async setUserStatus(p,g){await c(o(r,"users",p),{status:g})},async setLibraryAccess(p,g){if(typeof g!=="boolean")throw new Error("Invalid library access value");await c(o(r,"users",p),{fullLibraryAccess:g})},async importData(p,g){let{subjects:y,items:S,files:A,bodies:L,appendSubjects:extraSubjects}=X(p),$={updatedAt:E(),version:1};if(extraSubjects){let current=await l(b);$.subjects=mergeImportedSubjects(current.exists()?current.data().subjects:[],extraSubjects)}y&&($.subjects=y),Object.
 keys(S).length&&($.items=S),A&&($.files=A),await d(b,$,{merge:!0}),g?.(1,L.length+1);for(let z=0;z<L.length;z+=200){let st=M(r);for(let W of L.slice(z,z+200))st.set(o(r,"bodies",W.id),{md:W.md,task:W.task,updatedAt:E()});await st.commit(),g?.(Math.min(L.length,z+200)+1,L.length+1)}return{items:Object.
 keys(S).length,bodies:L.length,files:A?Object.keys(A).length:0}},async updateItem(p,g){await d(b,{items:{[p]:g},updatedAt:E()},{merge:!0})}}}var _t=at(()=>{"use strict";R();P()});R();async function Gt(){let t=new URLSearchParams(location.search);if(["localhost","127.0.0.1"].includes(location.hostname)&&t.get("backend")==="fake"){let{createFakeBackend:n}=await Promise.resolve().then(()=>(Vt(),Ut));return n(t.get("as")||"student")}let{createFirebaseBackend:a}=await Promise.resolve().then(()=>(_t(),Ft));
 return a()}var qt={phase:"boot",user:null,profile:null,isAdmin:!1,catalog:null,progress:{},catalogError:null,tasksFilter:"active",tasksQuery:"",subjectFilter:"tasks",errorText:""},ht=new Set,h={state:qt,set(t){let s=Object.keys(t);Object.assign(qt,t),ht.forEach(a=>a(s))},subscribe(t){return ht.add(t),()=>ht.delete(
@@ -188,15 +188,60 @@ function userVisitLabel(value) {
     timeZone:"Asia/Qyzylorda", day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit", hour12:false
   }).format(new Date(millis));
 }
-function ie(t){let s=e("div",{class:"list-area"},
-q(4)),a=[],n=()=>{if(!h.state.isAdmin)return w(s,I({icon:"shield",title:"Только для админа"}));let stats=userActivitySummary(a,h.state.user?.uid);let r=a.filter(c=>(c.status||"pending")==="pending"),o=a.filter(c=>c.status==="approved"),l=a.filter(c=>c.status==="blocked"),d=(c,f)=>e("li",{class:"row user-row"},c.photo?e("img",{class:"a\
-vatar small",src:c.photo,alt:"",width:36,height:36,referrerpolicy:"no-referrer"}):e("span",{class:"avatar small avatar-fallback","aria-hidden":"true"},(c.name||"?").slice(0,1)),e("span",{class:"row-text"},e("span",{class:"row-title"},c.name||"Без имени"),e("span",{class:"row-meta"},c.email||
-""),e("span",{class:"row-meta"},"Последний заход: "+userVisitLabel(c.lastSeen)),e("span",{class:"row-meta"},"Первый вход: "+userVisitLabel(c.createdAt))),e("span",{class:"row-actions"},f.map(v=>e("button",{type:"button",class:`btn btn-small ${v.tone}`,onclick:async u=>{let k=u.currentTarget;k.disabled=!0;try{await t.backend.setUserStatus(c.uid,v.status),T(v.status==="approved"?`${c.name||"Студент"} получил доступ`:"Готово")}catch(M){
-console.error(M),T("Не получилось",{tone:"error"}),k.disabled=!1}}},v.label))));w(s,e("div",{class:"stats admin-stats",role:"group","aria-label":"Статистика использования"},At(stats.total,"всего аккаунтов"),At(stats.activeWeek,"заходили за 7 дней")),e("p",{class:"group-footer"},"За 7 дней: допущенные аккаунты, кроме текущего администратора. Тестовые аккаунты тоже могут учитываться. Последний заход обновляется не чаще раза в 6 часов; время — Кызылорда (UTC+5)."),r.length?O(`Ждут подтверждения · ${r.length}`,r.map(c=>d(c,[{label:"Пустить",status:"approved",tone:"btn-filled"},{label:"Отклонить",status:"blocked",tone:"btn-plain dang\
-er-text"}]))):O("Заявки",[e("li",{class:"row"},e("span",{class:"row-text muted"},"Новых заявок нет"))]),o.length?O(`В группе · ${o.length}`,o.map(c=>d(c,[{label:"Закрыть доступ",status:"blocked",tone:"btn-plain danger-text"}]))):null,l.length?O(`Закрыт доступ\
- · ${l.length}`,l.map(c=>d(c,[{label:"Вернуть",status:"approved",tone:"btn-tinted"}]))):null,e("p",{class:"group-footer"},"Ссылку на приложение можно скинуть в чат группы. Каждый входит через свой Google, а ты пускаешь его здесь."))},
-i=t.backend.watchUsers(r=>{a=r,n()},r=>{console.error(r),w(s,I({icon:"shield",title:"Нет доступа к списку",text:"Список студентов видит только админ."}))});return{el:e("div",{class:"page"},D({title:"Студенты",back:{href:"#/me",label:"Профиль"}}),
-s),destroy:i}}async function loadImportFromUrl(value) {
+function ie(t) {
+  const list = e("div", {class:"list-area"}, q(4));
+  let users = [];
+  function render() {
+    if (!h.state.isAdmin) return w(list, I({icon:"shield", title:"Только для админа"}));
+    const stats = userActivitySummary(users, h.state.user?.uid);
+    const pending = users.filter(user => (user.status || "pending") === "pending");
+    const approved = users.filter(user => user.status === "approved");
+    const blocked = users.filter(user => user.status === "blocked");
+    function row(user, actions) {
+      const ownAccount = user.uid === h.state.user?.uid;
+      const full = user.fullLibraryAccess === true;
+      const controls = actions.map(action => e("button", {type:"button", class:`btn btn-small ${action.tone}`, onclick:async event => {
+        const button = event.currentTarget;
+        button.disabled = true;
+        try { await t.backend.setUserStatus(user.uid, action.status); T(action.status === "approved" ? `${user.name || "Студент"} получил доступ` : "Готово"); }
+        catch (error) { console.error(error); T("Не получилось", {tone:"error"}); button.disabled = false; }
+      }}, action.label));
+      if (!ownAccount && user.status === "approved") {
+        controls.unshift(e("button", {type:"button", class:`btn btn-small ${full ? "btn-plain" : "btn-tinted"}`,
+          "aria-label":`${full ? "Убрать" : "Дать"} полную базу: ${user.name || user.email || "студент"}`,
+          "aria-pressed":String(full), onclick:async event => {
+            const button = event.currentTarget;
+            button.disabled = true;
+            try {
+              await t.backend.setLibraryAccess(user.uid, !full);
+              T(full ? "Доступ к полной базе отозван" : "Доступ к полной базе выдан");
+            } catch (error) { console.error(error); T("Не удалось изменить доступ", {tone:"error"}); button.disabled = false; }
+          }
+        }, full ? "Убрать полную базу" : "Дать полную базу"));
+      }
+      return e("li", {class:"row user-row"},
+        user.photo ? e("img", {class:"avatar small",src:user.photo,alt:"",width:36,height:36,referrerpolicy:"no-referrer"})
+          : e("span", {class:"avatar small avatar-fallback","aria-hidden":"true"}, (user.name || "?").slice(0,1)),
+        e("span", {class:"row-text"}, e("span",{class:"row-title"},user.name || "Без имени"),
+          e("span",{class:"row-meta"},user.email || ""),
+          e("span",{class:"row-meta"},ownAccount ? "Администратор · полная база" : user.status === "approved" && full ? "Доступ: полная база" : "Доступ: обычная база"),
+          e("span",{class:"row-meta"},"Последний заход: " + userVisitLabel(user.lastSeen)),
+          e("span",{class:"row-meta"},"Первый вход: " + userVisitLabel(user.createdAt))),
+        e("span",{class:"row-actions"},controls));
+    }
+    w(list,
+      e("div",{class:"stats admin-stats",role:"group","aria-label":"Статистика использования"},At(stats.total,"всего аккаунтов"),At(stats.activeWeek,"заходили за 7 дней")),
+      e("p",{class:"group-footer"},"За 7 дней: допущенные аккаунты, кроме текущего администратора. Тестовые аккаунты тоже могут учитываться. Последний заход обновляется не чаще раза в 6 часов; время — Кызылорда (UTC+5)."),
+      e("p",{class:"group-footer"},"Полная база открывает дополнительные учебные материалы и раздел «Кратко» для чтения. Доступ выдаётся каждому студенту отдельно."),
+      pending.length ? O(`Ждут подтверждения · ${pending.length}`,pending.map(user=>row(user,[{label:"Пустить",status:"approved",tone:"btn-filled"},{label:"Отклонить",status:"blocked",tone:"btn-plain danger-text"}])))
+        : O("Заявки",[e("li",{class:"row"},e("span",{class:"row-text muted"},"Новых заявок нет"))]),
+      approved.length ? O(`В группе · ${approved.length}`,approved.map(user=>row(user,[{label:"Закрыть доступ",status:"blocked",tone:"btn-plain danger-text"}]))) : null,
+      blocked.length ? O(`Закрыт доступ · ${blocked.length}`,blocked.map(user=>row(user,[{label:"Вернуть",status:"approved",tone:"btn-tinted"}]))) : null);
+  }
+  const unsubscribe = t.backend.watchUsers(value=>{users=value;render();},error=>{console.error(error);w(list,I({icon:"shield",title:"Нет доступа к списку",text:"Список студентов видит только админ."}));});
+  return {el:e("div",{class:"page"},D({title:"Студенты",back:{href:"#/me",label:"Профиль"}}),list),destroy:unsubscribe};
+}
+async function loadImportFromUrl(value) {
   const url = new URL(value, location.href);
   if (url.protocol !== "https:" || url.origin !== location.origin || !url.pathname.endsWith(".json")) {
     throw new Error("Укажи ссылку на JSON-файл с этого сайта.");

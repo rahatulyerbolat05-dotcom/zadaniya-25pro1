@@ -4,10 +4,10 @@
  *
  * Отдельный модуль рядом с app.js (подключается в index.html). Сам ничего не инициализирует:
  * берёт уже запущенное приложением Firebase-приложение и показывает блок «Кратко»
- * только когда вошёл администратор.
+ * администратору и допущенным студентам с fullLibraryAccess: true.
  *
  * Данные: Firestore `private/kratko_<itemId>` = { subject, itemId, title, order, md, updatedAt }.
- * Читать и писать `private/*` может только администратор (firestore.rules).
+ * Чтение private/* — администратор либо допущенный студент с полной базой; запись — только администратор.
  *
  * Где видно:
  *  - страница материала `#/i/<id>` — карточка «Кратко» над файлами;
@@ -34,6 +34,9 @@ const URLS = {
 /** @type {{ db: any, fs: any } | null} */
 let fb = null;
 let enabled = false;
+let accessEpoch = 0;
+let administrator = false;
+let stopProfile = null;
 /** @type {Map<string, any>} itemId → doc data (null = нет кратко) */
 const itemCache = new Map();
 /** @type {Map<string, any[]>} subjectId → docs sorted by order */
@@ -86,21 +89,27 @@ function el(tag, attrs = {}, kids = []) {
 
 /** @param {string} itemId */
 async function getItem(itemId) {
+  const epoch = accessEpoch;
+  if (!enabled) return null;
   if (itemCache.has(itemId)) return itemCache.get(itemId);
   if (!fb) return null;
   const { fs, db } = fb;
   const snap = await fs.getDoc(fs.doc(db, 'private', `kratko_${itemId}`));
   const data = snap.exists() ? snap.data() : null;
+  if (!enabled || epoch !== accessEpoch) return null;
   itemCache.set(itemId, data);
   return data;
 }
 
 /** @param {string} subjectId */
 async function getSubject(subjectId) {
+  const epoch = accessEpoch;
+  if (!enabled) return [];
   if (subjectCache.has(subjectId)) return subjectCache.get(subjectId) || [];
   if (!fb) return [];
   const { fs, db } = fb;
   const snap = await fs.getDocs(fs.query(fs.collection(db, 'private'), fs.where('subject', '==', subjectId)));
+  if (!enabled || epoch !== accessEpoch) return [];
   /** @type {any[]} */
   const docs = [];
   snap.forEach((/** @type {any} */ d) => docs.push(d.data()));
@@ -139,7 +148,7 @@ async function render() {
       body.innerHTML = await toHtml(data.md); // sanitised by DOMPurify
       if (seq !== renderSeq || !header.isConnected) return;
       const section = el('section', { class: 'group-section kratko', 'data-kratko': want }, [
-        el('h2', { class: 'group-title' }, ['Кратко · видишь только ты']),
+        el('h2', { class: 'group-title' }, [administrator ? 'Кратко · видишь только ты' : 'Кратко · полная база']),
         el('div', { class: 'card kratko-card' }, [body]),
       ]);
       const summary = page.querySelector('.card.summary');
@@ -168,6 +177,8 @@ function plural(n) {
 
 /** @param {any[]} docs */
 async function openSubject(docs) {
+  if (!enabled) return;
+  const epoch = accessEpoch;
   const title = document.querySelector('.page h1')?.textContent || 'Предмет';
   const bodyWrap = el('div', { class: 'sheet-body kratko-sheet-body' });
   const close = el('button', { type: 'button', class: 'btn btn-plain btn-small' }, ['Готово']);
@@ -183,6 +194,7 @@ async function openSubject(docs) {
   for (const d of docs) {
     const prose = el('div', { class: 'prose' });
     prose.innerHTML = await toHtml(d.md); // sanitised by DOMPurify
+    if (!enabled || epoch !== accessEpoch || !dialog.isConnected) return;
     const link = el('a', { href: `#/i/${encodeURIComponent(d.itemId)}` }, [d.title || d.itemId]);
     link.addEventListener('click', () => dialog.close());
     bodyWrap.append(el('article', { class: 'kratko-topic' }, [el('h3', { class: 'kratko-topic-title' }, [link]), prose]));
@@ -201,10 +213,13 @@ function schedule() {
 /* ---------- Личное: материалы, которые видит только администратор ---------- */
 
 async function getPrivItems() {
+  const epoch = accessEpoch;
+  if (!enabled) return [];
   if (privItems) return privItems;
   if (!fb) return [];
   const { fs, db } = fb;
   const snap = await fs.getDocs(fs.query(fs.collection(db, 'private'), fs.where('kind', '==', 'item')));
+  if (!enabled || epoch !== accessEpoch) return [];
   /** @type {any[]} */
   const docs = [];
   snap.forEach((/** @type {any} */ d) => docs.push(d.data()));
@@ -257,7 +272,7 @@ async function renderPrivate() {
       ]),
     ]));
     list.before(el('section', { class: 'group-section lichnoe', 'data-lichnoe': want }, [
-      el('h2', { class: 'group-title' }, ['Личное · видишь только ты']),
+      el('h2', { class: 'group-title' }, [administrator ? 'Личное · видишь только ты' : 'Дополнительные материалы · полная база']),
       el('ul', { class: 'group', role: 'list' }, rows),
     ]));
   } catch (e) {
@@ -267,6 +282,8 @@ async function renderPrivate() {
 
 /** @param {any} it */
 async function openPrivate(it) {
+  if (!enabled) return;
+  const epoch = accessEpoch;
   const body = el('div', { class: 'sheet-body lichnoe-sheet-body' });
   const close = el('button', { type: 'button', class: 'btn btn-plain btn-small' }, ['Готово']);
   const dialog = /** @type {HTMLDialogElement} */ (el('dialog', { class: 'sheet lichnoe-sheet', 'aria-label': it.title || 'Личный материал' }, [
@@ -285,7 +302,7 @@ async function openPrivate(it) {
   });
   document.body.append(dialog);
   dialog.showModal();
-  body.append(el('p', { class: 'lichnoe-meta' }, [[it.subjCode, it.kindLabel, shortDate(it.date), it.pair].filter(Boolean).join(' · '), ' · только у тебя']));
+  body.append(el('p', { class: 'lichnoe-meta' }, [[it.subjCode, it.kindLabel, shortDate(it.date), it.pair].filter(Boolean).join(' · '), administrator ? ' · только у тебя' : ' · полная база']));
   if (Array.isArray(it.files) && it.files.length) {
     const ul = el('ul', { class: 'lichnoe-files', role: 'list' });
     for (const f of it.files) {
@@ -296,16 +313,39 @@ async function openPrivate(it) {
     body.append(el('h3', { class: 'lichnoe-h' }, ['Файлы']), ul);
   }
   const kr = await getItem(it.itemId).catch(() => null);
+  if (!enabled || epoch !== accessEpoch || !dialog.isConnected) return;
   if (kr && kr.md) {
     const k = el('div', { class: 'prose' });
     k.innerHTML = await toHtml(kr.md); // sanitised by DOMPurify
+    if (!enabled || epoch !== accessEpoch || !dialog.isConnected) return;
     body.append(el('h3', { class: 'lichnoe-h' }, ['Кратко']), el('div', { class: 'card kratko-card' }, [k]));
   }
   if (it.md) {
     const p = el('div', { class: 'prose' });
     p.innerHTML = await toHtml(it.md); // sanitised by DOMPurify
+    if (!enabled || epoch !== accessEpoch || !dialog.isConnected) return;
     body.append(el('h3', { class: 'lichnoe-h' }, [it.hasTask ? 'Задание и материал' : 'Конспект']), el('div', { class: 'card' }, [p]));
   }
+}
+
+function canReadFullLibrary(user, profile) {
+  return !!user && !!user.emailVerified && (
+    user.email === ADMIN_EMAIL ||
+    (profile?.status === 'approved' && profile?.fullLibraryAccess === true)
+  );
+}
+function applyLibraryProfile(user, profile) {
+  const next = canReadFullLibrary(user, profile);
+  enabled = next;
+  accessEpoch++;
+  renderSeq++; privSeq++;
+  itemCache.clear(); subjectCache.clear(); privItems = null;
+  if (!next) {
+    privDialog?.close();
+    for (const dialog of document.querySelectorAll('.kratko-sheet')) dialog.close();
+    for (const node of document.querySelectorAll('[data-kratko], [data-lichnoe]')) node.remove();
+  }
+  schedule();
 }
 
 async function init() {
@@ -319,12 +359,15 @@ async function init() {
   if (!app) return;
   const auth = authMod.getAuth(app);
   authMod.onAuthStateChanged(auth, (/** @type {any} */ u) => {
-    enabled = !!u && u.email === ADMIN_EMAIL && !!u.emailVerified;
-    if (enabled && !fb) fb = { db: fsMod.getFirestore(app), fs: fsMod };
-    itemCache.clear();
-    subjectCache.clear();
-    privItems = null;
-    schedule();
+    stopProfile?.(); stopProfile = null;
+    administrator = !!u && u.email === ADMIN_EMAIL && !!u.emailVerified;
+    fb = u ? { db: fsMod.getFirestore(app), fs: fsMod } : null;
+    applyLibraryProfile(u, null);
+    if (u && fb) {
+      stopProfile = fsMod.onSnapshot(fsMod.doc(fb.db, 'users', u.uid),
+        (snapshot) => applyLibraryProfile(u, snapshot.exists() ? snapshot.data() : null),
+        () => applyLibraryProfile(u, null));
+    }
   });
   window.addEventListener('hashchange', schedule);
   const root = document.getElementById('app');

@@ -82,3 +82,5 @@ transition-duration:1ms!important}}
 .announcements:empty{display:none}.announcements .group-section{margin-top:0}.announcement-row .row-meta{white-space:normal;display:block;-webkit-line-clamp:unset;overflow:visible}
 
 .admin-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+
+.user-row .row-actions{flex-wrap:wrap;justify-content:flex-end;max-width:260px}

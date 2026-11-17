@@ -19,6 +19,13 @@ service cloud.firestore {
             && exists(/databases/$(database)/documents/users/$(request.auth.uid))
             && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'approved');
     }
+    function hasFullLibraryAccess() {
+      return signedIn()
+        && request.auth.token.email_verified == true
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status == 'approved'
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('fullLibraryAccess', false) == true;
+    }
     function shortString(v, max) {
       return v is string && v.size() <= max;
     }
@@ -63,9 +70,11 @@ service cloud.firestore {
       allow delete: if signedIn() && request.auth.uid == uid;
     }
 
-    // Admin's personal study notes («Кратко»): only the admin reads and writes.
+    // Additional study library: opt-in student reading; only administrator writes.
+    // Other users' personal progress and notes stay protected in /progress above.
     match /private/{docId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin() || hasFullLibraryAccess();
+      allow write: if isAdmin();
     }
 
     // Everything else is closed.
