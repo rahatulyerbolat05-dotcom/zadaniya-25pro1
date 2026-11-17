@@ -240,22 +240,75 @@ function le(t) {
       e("label", {for:"import-url"}, "Ссылка на JSON"), url, load, submit, result)
       : I({icon:"shield", title:"Только для админа"}))};
 }
-P();function ce(){let t=e("div",{class:"list-area"});function s(){let n=h.state;if(!n.catalog)return w(t,q(8));let i=[...n.catalog.subjects||[]].sort((r,o)=>(r.order??0)-(o.order??0));if(!i.length)return w(t,I({icon:"book",title:"Предметов пока нет"}));w(t,O("",i.map(r=>{let o=mt(n.catalog,
-n.progress,r.id),l=o.tasks?`${o.done} из ${o.tasks} ${Y(o.tasks,["задания","заданий","заданий"])}`:o.items?`${o.items} ${Y(o.items,["материал","материала","материалов"])}`:"материалов нет";return e("li",{class:"row"},e("a",{class:"row-li\
-nk subject-row",href:`#/s/${r.id}`},e("span",{class:`subject-badge badge-${r.color||"gray"}`,"aria-hidden":"true"},r.code.replace("РО ","").replace("ООМ ","ООМ ")),e("span",{class:"row-text"},e("span",{class:"row-title"},`${r.code} · ${r.name}`),e("span",{class:"row-meta"},[r.teacher,l].filter(
-Boolean).join(" · ")),o.tasks?ct(o.done,o.tasks):null),x("chevronRight",{size:18})))})))}let a=e("div",{class:"page"},D({title:"Предметы"}),t);return s(),{el:a,update:n=>n.some(i=>i==="catalog"||i==="progress")&&s()}}function ue(t){let s=e("div"),a=e("div",{class:"list-area","aria-live":"po\
+P();function isPracticeSubject(subject) {
+  return subject?.id === "pm-01-practice" || subject?.category === "practice";
+}
+function separatePracticeTaskGroups(groups, catalog) {
+  const practiceSubjects = new Set((catalog?.subjects || []).filter(isPracticeSubject).map(subject => subject.id));
+  const practice = [];
+  const regular = [];
+  for (const group of groups) {
+    const items = [];
+    for (const item of group.items) {
+      if (practiceSubjects.has(item.subject)) practice.push(item);
+      else items.push(item);
+    }
+    if (items.length) regular.push({...group, items});
+  }
+  return [...(practice.length ? [{key:"practice", title:"Учебная практика", items:practice.sort(Pt)}] : []), ...regular];
+}
+function ce() {
+  const list = e("div", {class:"list-area"});
+  function render() {
+    const state = h.state;
+    if (!state.catalog) return w(list, q(8));
+    const subjects = [...state.catalog.subjects || []].sort((a,b) => (a.order??0)-(b.order??0));
+    if (!subjects.length) return w(list, I({icon:"book", title:"Предметов пока нет"}));
+    function row(subject) {
+      const progress = mt(state.catalog, state.progress, subject.id);
+      const summary = progress.tasks ? `${progress.done} из ${progress.tasks} ${Y(progress.tasks,["задания","заданий","заданий"])}`
+        : progress.items ? `${progress.items} ${Y(progress.items,["материал","материала","материалов"])}` : "материалов нет";
+      return e("li", {class:"row"}, e("a", {class:"row-link subject-row", href:`#/s/${subject.id}`},
+        e("span", {class:`subject-badge badge-${subject.color||"gray"}`, "aria-hidden":"true"}, subject.code.replace("РО ","").replace("ООМ ","ООМ ")),
+        e("span", {class:"row-text"}, e("span", {class:"row-title"}, `${subject.code} · ${subject.name}`),
+          e("span", {class:"row-meta"}, [subject.teacher, summary].filter(Boolean).join(" · ")),
+          progress.tasks ? ct(progress.done, progress.tasks) : null), x("chevronRight",{size:18})));
+    }
+    const practice = subjects.filter(isPracticeSubject);
+    const regular = subjects.filter(subject => !isPracticeSubject(subject));
+    w(list, practice.length ? O("Практика", practice.map(row)) : null,
+      regular.length ? O(practice.length ? "Остальные предметы" : "", regular.map(row)) : null);
+  }
+  const page = e("div", {class:"page"}, D({title:"Предметы"}), list);
+  render();
+  return {el:page, update:keys => keys.some(key => key === "catalog" || key === "progress") && render()};
+}
+P();function ue(t){let s=e("div"),a=e("div",{class:"list-area","aria-live":"po\
 lite"}),n=_({label:"Что показать",value:h.state.subjectFilter,options:[{value:"tasks",label:"Задания"},{value:"lectures",label:"Лекции"},{value:"all",label:"Всё"}],onChange:o=>h.set({subjectFilter:o})});function i(){let o=h.state,l=o.catalog?.subjects?.find(f=>f.id===t.id);
 if(!o.catalog){w(s,D({title:"…",back:{href:"#/subjects",label:"Предметы"}})),w(a,q(6));return}if(!l){w(s,D({title:"Не найдено",back:{href:"#/subjects",label:"Предметы"}})),w(a,I({icon:"book",title:"Такого предмета нет",action:e("a",{class:"btn btn-tinted",
 href:"#/subjects"},"К предметам")}));return}let d=mt(o.catalog,o.progress,l.id);w(s,D({title:l.name,subtitle:l.code,back:{href:"#/subjects",label:"Предметы"}}),e("div",{class:"info-card"},l.fullName?e("p",{class:"info-quote"},l.fullName):null,e("dl",{class:"info-list"},l.teacher?[e(
 "dt",null,"Преподаватель"),e("dd",null,l.teacher)]:null,l.schedule?[e("dt",null,"Пары"),e("dd",null,l.schedule)]:null,d.tasks?[e("dt",null,"Сделано"),e("dd",null,`${d.done} из ${d.tasks}`)]:null)));let c=Rt(o.catalog,o.progress,l.id,o.subjectFilter);w(a,c.length?O("",c.map(
 f=>lt({item:f,subject:l,progress:o.progress,onStatus:t.onStatus,showSubject:!1}))):I({icon:o.subjectFilter==="tasks"?"check":"book",title:o.subjectFilter==="tasks"?"Заданий нет":"Материалов нет"}))}let r=e("div",{class:"page"},s,e("div",{class:"toolbar"},n),a);return i(),{el:r,
-update:o=>o.some(l=>["catalog","progress","subjectFilter"].includes(l))&&i()}}P();function de(t){let s=h.state,a=e("div",{class:"summary-card"}),n=e("div",{class:"list-area","aria-live":"polite"}),i=e("input",{type:"search",class:"search-input",placeholder:"Поиск по заданиям","aria-label":"Поиск по заданиям",value:s.tasksQuery,autocomplete:"off",enterkeyhint:"\
+update:o=>o.some(l=>["catalog","progress","subjectFilter"].includes(l))&&i()}}P();function announcementItems(catalog) {
+  return ft(catalog).filter(item => item.type === "announcement").sort(Pt).slice(0, 3);
+}
+function renderAnnouncements(container, catalog) {
+  const items = announcementItems(catalog);
+  if (!items.length) { w(container); return; }
+  w(container, O("Объявления", items.map(item => e("li", {class:"row announcement-row"},
+    e("a", {class:"row-link", href:`#/i/${encodeURIComponent(item.id)}`},
+      e("span", {class:"row-icon", "aria-hidden":"true"}, x("note")),
+      e("span", {class:"row-text"}, e("span", {class:"row-title"}, item.title),
+        e("span", {class:"row-meta"}, [V(item.date, true), item.summary].filter(Boolean).join(" · "))),
+      x("chevronRight", {size:18}))))));
+}
+function de(t){let announcements=e("div",{class:"announcements","aria-live":"polite"});let s=h.state,a=e("div",{class:"summary-card"}),n=e("div",{class:"list-area","aria-live":"polite"}),i=e("input",{type:"search",class:"search-input",placeholder:"Поиск по заданиям","aria-label":"Поиск по заданиям",value:s.tasksQuery,autocomplete:"off",enterkeyhint:"\
 search"}),r=0;i.addEventListener("input",()=>{window.clearTimeout(r),r=window.setTimeout(()=>h.set({tasksQuery:i.value}),150)});let o=_({label:"Фильтр заданий",value:s.tasksFilter,options:[{value:"active",label:"Активные"},{value:"all",label:"Все"},{value:"done",label:"Готово"}],
-onChange:c=>h.set({tasksFilter:c})});function l(){let c=h.state;if(!c.catalog){w(a,e("div",{class:"sk sk-line"})),w(n,q(6));return}let f=rt(c.catalog,c.progress,{filter:c.tasksFilter,query:c.tasksQuery,today:U()});if(!Object.keys(c.catalog.items||{}).length){w(a,e("div",{class:"summary-label"},"Заданий пока нет")),w(n,c.isAdmin?I({icon:"upload",title:"Задания ещё не загружены",text:"Загрузи файл zadaniya-seed.json из «Загрузок» — после этого задания увидит вся группа.",action:e("a",{class:"btn btn-filled",href:"#/admin/import"},"Загрузить задания")}):I({icon:"tasks",title:"Заданий пока нет",text:"Админ группы ещё не загрузил задания. Загляни позже."}));return}let v=f.total-f.done;w(a,e("div",{class:"summary-top"},e("div",null,e("div",{class:"summar\
+onChange:c=>h.set({tasksFilter:c})});function l(){let c=h.state;renderAnnouncements(announcements,c.catalog);if(!c.catalog){w(a,e("div",{class:"sk sk-line"})),w(n,q(6));return}let f=rt(c.catalog,c.progress,{filter:c.tasksFilter,query:c.tasksQuery,today:U()});if(!Object.keys(c.catalog.items||{}).length){w(a,e("div",{class:"summary-label"},"Заданий пока нет")),w(n,c.isAdmin?I({icon:"upload",title:"Задания ещё не загружены",text:"Загрузи файл zadaniya-seed.json из «Загрузок» — после этого задания увидит вся группа.",action:e("a",{class:"btn btn-filled",href:"#/admin/import"},"Загрузить задания")}):I({icon:"tasks",title:"Заданий пока нет",text:"Админ группы ещё не загрузил задания. Загляни позже."}));return}let v=f.total-f.done;w(a,e("div",{class:"summary-top"},e("div",null,e("div",{class:"summar\
 y-number"},String(v)),e("div",{class:"summary-label"},v===0?"всё сделано":`осталось из ${f.total} ${Y(f.total,["задания","заданий","заданий"])}`)),e("div",{class:"summary-ring","aria-hidden":"true",style:{"--p":String(f.total?f.done/f.total:0)}},e("span",null,
 `${f.total?Math.round(f.done/f.total*100):0}%`))),ct(f.done,f.total));let u=new Map((c.catalog.subjects||[]).map(k=>[k.id,k]));if(!f.groups.length){w(n,c.tasksQuery?I({icon:"search",title:"Ничего не нашлось",text:"Попробуй другое слово или сбрось поиск."}):
 c.tasksFilter==="active"?I({icon:"check",title:"Все задания сделаны",text:"Можно повторить темы — открой любой предмет."}):I({icon:"tasks",title:"Пока пусто",text:"Здесь появятся задания, как только админ их добавит."}));
-return}w(n,f.groups.map(k=>O(k.title,k.items.map(M=>lt({item:M,subject:u.get(M.subject),progress:c.progress,onStatus:t.onStatus,showSubject:!0})))))}let d=e("div",{class:"page"},D({title:"Задания"}),a,e("div",{class:"toolbar"},e("label",{class:"search"},x("search",{size:18}),i),o),n);return l(),
+return}w(n,separatePracticeTaskGroups(f.groups,c.catalog).map(k=>O(k.title,k.items.map(M=>lt({item:M,subject:u.get(M.subject),progress:c.progress,onStatus:t.onStatus,showSubject:!0})))))}let d=e("div",{class:"page"},D({title:"Задания"}),announcements,a,e("div",{class:"toolbar"},e("label",{class:"search"},x("search",{size:18}),i),o),n);return l(),
 {el:d,update(c){c.some(f=>["catalog","progress","tasksFilter","tasksQuery"].includes(f))&&l()}}}ot();window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>ot());var H=document.getElementById("app"),C,jt=[],et=null,tt=null,fe=0,Te=[{href:"#/",id:"tasks",label:"Задания",icon:"tasks"},{href:"#/subjects",id:"subjects",label:"Предметы",icon:"book"},{href:"#/\
 me",id:"me",label:"Профиль",icon:"user"}];function $t(){let s=(location.hash.replace(/^#/,"")||"/").split("/").filter(Boolean);return s[0]==="i"&&s[1]?{name:"item",id:decodeURIComponent(s[1]),tab:"tasks"}:s[0]==="s"&&s[1]?{name:"subject",id:decodeURIComponent(s[1]),tab:"subjects"}:s[0]==="sub\
 jects"?{name:"subjects",tab:"subjects"}:s[0]==="me"?{name:"me",tab:"me"}:s[0]==="admin"&&s[1]==="users"?{name:"adminUsers",tab:"me"}:s[0]==="admin"&&s[1]==="import"?{name:"adminImport",tab:"me"}:{name:"tasks",tab:"tasks"}}async function St(t,s){let a=h.state.user?.uid;if(!a)return;let n=h.state.progress;
