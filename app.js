@@ -167,13 +167,80 @@ console.error(M),T("Не получилось",{tone:"error"}),k.disabled=!1}}},
 er-text"}]))):O("Заявки",[e("li",{class:"row"},e("span",{class:"row-text muted"},"Новых заявок нет"))]),o.length?O(`В группе · ${o.length}`,o.map(c=>d(c,[{label:"Закрыть доступ",status:"blocked",tone:"btn-plain danger-text"}]))):null,l.length?O(`Закрыт доступ\
  · ${l.length}`,l.map(c=>d(c,[{label:"Вернуть",status:"approved",tone:"btn-tinted"}]))):null,e("p",{class:"group-footer"},"Ссылку на приложение можно скинуть в чат группы. Каждый входит через свой Google, а ты пускаешь его здесь."))},
 i=t.backend.watchUsers(r=>{a=r,n()},r=>{console.error(r),w(s,I({icon:"shield",title:"Нет доступа к списку",text:"Список студентов видит только админ."}))});return{el:e("div",{class:"page"},D({title:"Студенты",back:{href:"#/me",label:"Профиль"}}),
-s),destroy:i}}function le(t){let s=e("div",{class:"import-result","aria-live":"polite"}),a=e("input",{type:"file",accept:"application/json,.json",class:"file-input",id:"import-file"}),n=e("button",{type:"button",class:"btn btn-filled",disabled:!0},"Импортировать"),i=null;return a.addEventListener(
-"change",async()=>{i=null,n.disabled=!0;let r=a.files?.[0];if(r){if(r.size>8*1024*1024)return w(s,e("p",{class:"form-error"},"Файл больше 8 МБ."));try{let o=JSON.parse(await r.text()),l=Nt(o);if(l.length)return w(s,e("div",{class:"card error-card"},e("p",null,"В файле ошибки:"),
-e("ul",null,l.map(d=>e("li",null,d)))));i=o,w(s,e("p",{class:"muted"},`${o.appendSubjects?"Новых предметов":"Предметов"}: ${o.appendSubjects?.length??o.subjects?.length??0}, материалов: ${o.items?.length??0}, ссылок на файлы: ${o.files?Object.keys(o.files).length:0}. Существующие отметки студентов не пострадают.`)),
-n.disabled=!1}catch{w(s,e("p",{class:"form-error"},"Это не JSON или файл повреждён."))}}}),n.addEventListener("click",async()=>{if(!i)return;n.disabled=!0;let r=e("progress",{max:"1",value:"0",class:"import-progress"});w(s,r);try{let o=await t.backend.importData(i,(l,d)=>{r.setAttribute(
-"max",String(d)),r.setAttribute("value",String(l))});w(s,e("p",{class:"ok-text"},`Готово: ${o.items} материалов, ${o.bodies} текстов, ${o.files} ссылок на файлы.`)),T("Импорт завершён")}catch(o){console.error(o),w(s,e("p",{class:"form-error"},"Импорт\
- не прошёл. Проверь, что ты вошёл как админ, и попробуй ещё раз.")),n.disabled=!1}}),{el:e("div",{class:"page"},D({title:"Импорт",back:{href:"#/me",label:"Профиль"}}),h.state.isAdmin?e("div",{class:"card form"},e("p",null,"Выбери JSON-файл\
- с заданиями (его готовит Claude). Материалы с теми же id обновятся, новые добавятся."),e("label",{class:"file-label",for:"import-file"},x("upload"),e("span",null,"Выбрать файл")),a,n,s):I({icon:"shield",title:"Только для админа"}))}}P();function ce(){let t=e("div",{class:"list-area"});function s(){let n=h.state;if(!n.catalog)return w(t,q(8));let i=[...n.catalog.subjects||[]].sort((r,o)=>(r.order??0)-(o.order??0));if(!i.length)return w(t,I({icon:"book",title:"Предметов пока нет"}));w(t,O("",i.map(r=>{let o=mt(n.catalog,
+s),destroy:i}}async function loadImportFromUrl(value) {
+  const url = new URL(value, location.href);
+  if (url.protocol !== "https:" || url.origin !== location.origin || !url.pathname.endsWith(".json")) {
+    throw new Error("Укажи ссылку на JSON-файл с этого сайта.");
+  }
+  const response = await fetch(url.href, {cache:"no-store", credentials:"same-origin", redirect:"error"});
+  if (!response.ok) throw new Error("Не удалось загрузить файл по ссылке.");
+  const text = await response.text();
+  if (new TextEncoder().encode(text).length > 8 * 1024 * 1024) throw new Error("Файл больше 8 МБ.");
+  try { return JSON.parse(text); }
+  catch { throw new Error("Это не JSON или файл повреждён."); }
+}
+function le(t) {
+  const result = e("div", {class:"import-result", "aria-live":"polite"});
+  const file = e("input", {type:"file", accept:"application/json,.json", class:"file-input", id:"import-file"});
+  const url = e("input", {type:"url", class:"text-input", id:"import-url", placeholder:"https://…/updates/2026-11-17.json"});
+  const load = e("button", {type:"button", class:"btn btn-tonal"}, "Загрузить по ссылке");
+  const submit = e("button", {type:"button", class:"btn btn-filled", disabled:true}, "Импортировать");
+  let payload = null;
+  function clear() { payload = null; submit.disabled = true; }
+  function error(message) { w(result, e("p", {class:"form-error"}, message)); }
+  function preview(data) {
+    clear();
+    const errors = Nt(data);
+    if (errors.length) {
+      w(result, e("div", {class:"card error-card"}, e("p", null, "В файле ошибки:"), e("ul", null, errors.map(message => e("li", null, message)))));
+      return;
+    }
+    payload = data;
+    w(result, e("p", {class:"muted"}, `${data.appendSubjects?"Новых предметов":"Предметов"}: ${data.appendSubjects?.length??data.subjects?.length??0}, материалов: ${data.items?.length??0}, ссылок на файлы: ${data.files?Object.keys(data.files).length:0}. Существующие отметки студентов не пострадают.`));
+    submit.disabled = false;
+  }
+  file.addEventListener("change", async () => {
+    clear();
+    const selected = file.files?.[0];
+    if (!selected) return;
+    if (selected.size > 8 * 1024 * 1024) return error("Файл больше 8 МБ.");
+    try { preview(JSON.parse(await selected.text())); }
+    catch { error("Это не JSON или файл повреждён."); }
+  });
+  load.addEventListener("click", async () => {
+    clear();
+    if (!url.value.trim()) return error("Вставь ссылку на JSON-файл.");
+    load.disabled = true; file.disabled = true; url.disabled = true;
+    w(result, e("p", {class:"muted"}, "Загружаю файл…"));
+    try { preview(await loadImportFromUrl(url.value.trim())); }
+    catch (failure) { error(failure.message || "Не удалось загрузить файл."); }
+    finally { load.disabled = false; file.disabled = false; url.disabled = false; }
+  });
+  submit.addEventListener("click", async () => {
+    if (!payload) return;
+    submit.disabled = true; file.disabled = true; url.disabled = true; load.disabled = true;
+    const progress = e("progress", {max:"1", value:"0", class:"import-progress"});
+    w(result, progress);
+    try {
+      const done = await t.backend.importData(payload, (current, total) => {
+        progress.setAttribute("max", String(total)); progress.setAttribute("value", String(current));
+      });
+      w(result, e("p", {class:"ok-text"}, `Готово: ${done.items} материалов, ${done.bodies} текстов, ${done.files} ссылок на файлы.`));
+      T("Импорт завершён");
+    } catch (failure) {
+      console.error(failure);
+      error("Импорт не прошёл. Проверь, что ты вошёл как админ, и попробуй ещё раз.");
+      submit.disabled = false;
+    } finally { file.disabled = false; url.disabled = false; load.disabled = false; }
+  });
+  return {el:e("div", {class:"page"}, D({title:"Импорт", back:{href:"#/me", label:"Профиль"}}),
+    h.state.isAdmin ? e("div", {class:"card form"},
+      e("p", null, "Загрузи JSON с заданиями из файла или по ссылке. Материалы с теми же id обновятся, новые добавятся."),
+      e("label", {class:"file-label", for:"import-file"}, x("upload"), e("span", null, "Выбрать файл")), file,
+      e("label", {for:"import-url"}, "Ссылка на JSON"), url, load, submit, result)
+      : I({icon:"shield", title:"Только для админа"}))};
+}
+P();function ce(){let t=e("div",{class:"list-area"});function s(){let n=h.state;if(!n.catalog)return w(t,q(8));let i=[...n.catalog.subjects||[]].sort((r,o)=>(r.order??0)-(o.order??0));if(!i.length)return w(t,I({icon:"book",title:"Предметов пока нет"}));w(t,O("",i.map(r=>{let o=mt(n.catalog,
 n.progress,r.id),l=o.tasks?`${o.done} из ${o.tasks} ${Y(o.tasks,["задания","заданий","заданий"])}`:o.items?`${o.items} ${Y(o.items,["материал","материала","материалов"])}`:"материалов нет";return e("li",{class:"row"},e("a",{class:"row-li\
 nk subject-row",href:`#/s/${r.id}`},e("span",{class:`subject-badge badge-${r.color||"gray"}`,"aria-hidden":"true"},r.code.replace("РО ","").replace("ООМ ","ООМ ")),e("span",{class:"row-text"},e("span",{class:"row-title"},`${r.code} · ${r.name}`),e("span",{class:"row-meta"},[r.teacher,l].filter(
 Boolean).join(" · ")),o.tasks?ct(o.done,o.tasks):null),x("chevronRight",{size:18})))})))}let a=e("div",{class:"page"},D({title:"Предметы"}),t);return s(),{el:a,update:n=>n.some(i=>i==="catalog"||i==="progress")&&s()}}function ue(t){let s=e("div"),a=e("div",{class:"list-area","aria-live":"po\
