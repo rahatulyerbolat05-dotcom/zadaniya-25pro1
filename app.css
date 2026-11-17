@@ -80,3 +80,5 @@ transition-duration:1ms!important}}
 .row-link:has(+.row-dl){padding-right:0}.row-dl{flex:none;display:grid;place-items:center;width:var(--tap);height:var(--tap);margin-right:var(--s2);color:var(--tint);border-radius:50%}.row-dl:active{background:var(--fill-2)}
 
 .announcements:empty{display:none}.announcements .group-section{margin-top:0}.announcement-row .row-meta{white-space:normal;display:block;-webkit-line-clamp:unset;overflow:visible}
+
+.admin-stats{grid-template-columns:repeat(2,minmax(0,1fr))}

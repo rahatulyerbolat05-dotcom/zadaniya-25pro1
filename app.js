@@ -159,11 +159,40 @@ true"},(i?.name||"?").slice(0,1));w(s,e("div",{class:"card profile-card"},o,e("d
 onChange:l=>Ht(l)}))]),n.isAdmin?O("Админ",[e("li",{class:"row"},e("a",{class:"row-link",href:"#/admin/users"},e("span",{class:"row-icon","aria-hidden":"true"},x("shield")),e("span",{class:"row-text"},e("span",{class:"row-title"},"Студенты и заявки")),x("chevronRight",{size:18}))),
 e("li",{class:"row"},e("a",{class:"row-link",href:"#/admin/import"},e("span",{class:"row-icon","aria-hidden":"true"},x("upload")),e("span",{class:"row-text"},e("span",{class:"row-title"},"Импорт заданий и файлов")),x("chevronRight",{size:18})))]):null,O("",[e("li",{class:"row"},e(
 "button",{type:"button",class:"row-link row-button danger-text",onclick:t.onSignOut},e("span",{class:"row-icon","aria-hidden":"true"},x("logout")),e("span",{class:"row-text"},e("span",{class:"row-title"},"Выйти"))))]),e("p",{class:"app-foot"},`${B} · отметки и заметки видишь только ты`))}
-return a(),{el:e("div",{class:"page"},D({title:"Профиль"}),s),update:n=>n.some(i=>["catalog","progress","user","isAdmin"].includes(i))&&a()}}function At(t,s){return e("div",{class:"stat"},e("span",{class:"stat-n"},t),e("span",{class:"stat-l"},s))}function ie(t){let s=e("div",{class:"list-area"},
-q(4)),a=[],n=()=>{if(!h.state.isAdmin)return w(s,I({icon:"shield",title:"Только для админа"}));let r=a.filter(c=>(c.status||"pending")==="pending"),o=a.filter(c=>c.status==="approved"),l=a.filter(c=>c.status==="blocked"),d=(c,f)=>e("li",{class:"row user-row"},c.photo?e("img",{class:"a\
+return a(),{el:e("div",{class:"page"},D({title:"Профиль"}),s),update:n=>n.some(i=>["catalog","progress","user","isAdmin"].includes(i))&&a()}}function At(t,s){return e("div",{class:"stat"},e("span",{class:"stat-n"},t),e("span",{class:"stat-l"},s))}function userTimestamp(value) {
+  if (value == null) return null;
+  let millis;
+  try {
+    if (typeof value.toMillis === "function") millis = value.toMillis();
+    else if (typeof value.seconds === "number") millis = value.seconds * 1000 + (value.nanoseconds || 0) / 1e6;
+    else if (value instanceof Date) millis = value.getTime();
+    else if (typeof value === "number") millis = value;
+    else if (typeof value === "string") millis = Date.parse(value);
+  } catch { return null; }
+  return Number.isFinite(millis) && millis > 0 ? millis : null;
+}
+function userActivitySummary(users, adminUid, now = Date.now()) {
+  const since = now - 7 * 24 * 60 * 60 * 1000;
+  return {
+    total: users.length,
+    activeWeek: users.filter(user => {
+      if (user.uid === adminUid || user.status !== "approved") return false;
+      const seen = userTimestamp(user.lastSeen);
+      return seen !== null && seen >= since && seen <= now;
+    }).length
+  };
+}
+function userVisitLabel(value) {
+  const millis = userTimestamp(value);
+  return millis === null ? "нет данных" : new Intl.DateTimeFormat("ru-RU", {
+    timeZone:"Asia/Qyzylorda", day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit", hour12:false
+  }).format(new Date(millis));
+}
+function ie(t){let s=e("div",{class:"list-area"},
+q(4)),a=[],n=()=>{if(!h.state.isAdmin)return w(s,I({icon:"shield",title:"Только для админа"}));let stats=userActivitySummary(a,h.state.user?.uid);let r=a.filter(c=>(c.status||"pending")==="pending"),o=a.filter(c=>c.status==="approved"),l=a.filter(c=>c.status==="blocked"),d=(c,f)=>e("li",{class:"row user-row"},c.photo?e("img",{class:"a\
 vatar small",src:c.photo,alt:"",width:36,height:36,referrerpolicy:"no-referrer"}):e("span",{class:"avatar small avatar-fallback","aria-hidden":"true"},(c.name||"?").slice(0,1)),e("span",{class:"row-text"},e("span",{class:"row-title"},c.name||"Без имени"),e("span",{class:"row-meta"},c.email||
-"")),e("span",{class:"row-actions"},f.map(v=>e("button",{type:"button",class:`btn btn-small ${v.tone}`,onclick:async u=>{let k=u.currentTarget;k.disabled=!0;try{await t.backend.setUserStatus(c.uid,v.status),T(v.status==="approved"?`${c.name||"Студент"} получил доступ`:"Готово")}catch(M){
-console.error(M),T("Не получилось",{tone:"error"}),k.disabled=!1}}},v.label))));w(s,r.length?O(`Ждут подтверждения · ${r.length}`,r.map(c=>d(c,[{label:"Пустить",status:"approved",tone:"btn-filled"},{label:"Отклонить",status:"blocked",tone:"btn-plain dang\
+""),e("span",{class:"row-meta"},"Последний заход: "+userVisitLabel(c.lastSeen)),e("span",{class:"row-meta"},"Первый вход: "+userVisitLabel(c.createdAt))),e("span",{class:"row-actions"},f.map(v=>e("button",{type:"button",class:`btn btn-small ${v.tone}`,onclick:async u=>{let k=u.currentTarget;k.disabled=!0;try{await t.backend.setUserStatus(c.uid,v.status),T(v.status==="approved"?`${c.name||"Студент"} получил доступ`:"Готово")}catch(M){
+console.error(M),T("Не получилось",{tone:"error"}),k.disabled=!1}}},v.label))));w(s,e("div",{class:"stats admin-stats",role:"group","aria-label":"Статистика использования"},At(stats.total,"всего аккаунтов"),At(stats.activeWeek,"заходили за 7 дней")),e("p",{class:"group-footer"},"За 7 дней: допущенные аккаунты, кроме текущего администратора. Тестовые аккаунты тоже могут учитываться. Последний заход обновляется не чаще раза в 6 часов; время — Кызылорда (UTC+5)."),r.length?O(`Ждут подтверждения · ${r.length}`,r.map(c=>d(c,[{label:"Пустить",status:"approved",tone:"btn-filled"},{label:"Отклонить",status:"blocked",tone:"btn-plain dang\
 er-text"}]))):O("Заявки",[e("li",{class:"row"},e("span",{class:"row-text muted"},"Новых заявок нет"))]),o.length?O(`В группе · ${o.length}`,o.map(c=>d(c,[{label:"Закрыть доступ",status:"blocked",tone:"btn-plain danger-text"}]))):null,l.length?O(`Закрыт доступ\
  · ${l.length}`,l.map(c=>d(c,[{label:"Вернуть",status:"approved",tone:"btn-tinted"}]))):null,e("p",{class:"group-footer"},"Ссылку на приложение можно скинуть в чат группы. Каждый входит через свой Google, а ты пускаешь его здесь."))},
 i=t.backend.watchUsers(r=>{a=r,n()},r=>{console.error(r),w(s,I({icon:"shield",title:"Нет доступа к списку",text:"Список студентов видит только админ."}))});return{el:e("div",{class:"page"},D({title:"Студенты",back:{href:"#/me",label:"Профиль"}}),
