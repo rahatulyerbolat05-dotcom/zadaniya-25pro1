@@ -340,7 +340,7 @@ function ce() {
     if (!subjects.length) return w(list, I({icon:"book", title:"Предметов пока нет"}));
     function row(subject) {
       const progress = mt(state.catalog, state.progress, subject.id);
-      const summary = progress.tasks ? `${progress.done} из ${progress.tasks} ${Y(progress.tasks,["задания","заданий","заданий"])}`
+      const summary = !progress.tasks && subjectIsDone(state.progress, subject.id) ? "Предмет сдан" : progress.tasks ? `${progress.done} из ${progress.tasks} ${Y(progress.tasks,["задания","заданий","заданий"])}`
         : progress.items ? `${progress.items} ${Y(progress.items,["материал","материала","материалов"])}` : "материалов нет";
       return e("li", {class:"row"}, e("a", {class:"row-link subject-row", href:`#/s/${subject.id}`},
         e("span", {class:`subject-badge badge-${subject.color||"gray"}`, "aria-hidden":"true"}, subject.code.replace("РО ","").replace("ООМ ","ООМ ")),
@@ -357,13 +357,45 @@ function ce() {
   render();
   return {el:page, update:keys => keys.some(key => key === "catalog" || key === "progress") && render()};
 }
-P();function ue(t){let s=e("div"),a=e("div",{class:"list-area","aria-live":"po\
-lite"}),n=_({label:"Что показать",value:h.state.subjectFilter,options:[{value:"tasks",label:"Задания"},{value:"lectures",label:"Лекции"},{value:"all",label:"Всё"}],onChange:o=>h.set({subjectFilter:o})});function i(){let o=h.state,l=o.catalog?.subjects?.find(f=>f.id===t.id);
-if(!o.catalog){w(s,D({title:"…",back:{href:"#/subjects",label:"Предметы"}})),w(a,q(6));return}if(!l){w(s,D({title:"Не найдено",back:{href:"#/subjects",label:"Предметы"}})),w(a,I({icon:"book",title:"Такого предмета нет",action:e("a",{class:"btn btn-tinted",
-href:"#/subjects"},"К предметам")}));return}let d=mt(o.catalog,o.progress,l.id);w(s,D({title:l.name,subtitle:l.code,back:{href:"#/subjects",label:"Предметы"}}),e("div",{class:"info-card"},l.fullName?e("p",{class:"info-quote"},l.fullName):null,e("dl",{class:"info-list"},l.teacher?[e(
-"dt",null,"Преподаватель"),e("dd",null,l.teacher)]:null,l.schedule?[e("dt",null,"Пары"),e("dd",null,l.schedule)]:null,d.tasks?[e("dt",null,"Сделано"),e("dd",null,`${d.done} из ${d.tasks}`)]:null)));let c=Rt(o.catalog,o.progress,l.id,o.subjectFilter);w(a,c.length?O("",c.map(
-f=>lt({item:f,subject:l,progress:o.progress,onStatus:t.onStatus,showSubject:!1}))):I({icon:o.subjectFilter==="tasks"?"check":"book",title:o.subjectFilter==="tasks"?"Заданий нет":"Материалов нет"}))}let r=e("div",{class:"page"},s,e("div",{class:"toolbar"},n),a);return i(),{el:r,
-update:o=>o.some(l=>["catalog","progress","subjectFilter"].includes(l))&&i()}}P();function announcementItems(catalog) {
+P();function subjectCompletionKey(id) { return "__subject__:" + id; }
+function subjectIsDone(progress, id) { return N(progress, subjectCompletionKey(id)) === "done"; }
+function ue(t) {
+  const header = e("div"), list = e("div", {class:"list-area", "aria-live":"polite"});
+  const filter = _({label:"Что показать", value:h.state.subjectFilter,
+    options:[{value:"tasks",label:"Задания"},{value:"lectures",label:"Лекции"},{value:"all",label:"Всё"}],
+    onChange:value=>h.set({subjectFilter:value})});
+  function render() {
+    const state = h.state;
+    if (!state.catalog) { w(header,D({title:"…",back:{href:"#/subjects",label:"Предметы"}}));w(list,q(6));return; }
+    const subject = state.catalog.subjects?.find(value=>value.id===t.id);
+    if (!subject) { w(header,D({title:"Не найдено",back:{href:"#/subjects",label:"Предметы"}}));w(list,I({icon:"book",title:"Такого предмета нет"}));return; }
+    const progress = mt(state.catalog,state.progress,subject.id);
+    const done = subjectIsDone(state.progress,subject.id);
+    w(header,D({title:subject.name,subtitle:subject.code,back:{href:"#/subjects",label:"Предметы"}}),
+      e("div",{class:"info-card"},subject.fullName?e("p",{class:"info-quote"},subject.fullName):null,
+        e("dl",{class:"info-list"},
+          subject.teacher?[e("dt",null,"Преподаватель"),e("dd",null,subject.teacher)]:null,
+          subject.schedule?[e("dt",null,"Пары"),e("dd",null,subject.schedule)]:null,
+          progress.tasks?[e("dt",null,"Сделано"),e("dd",null,`${progress.done} из ${progress.tasks}`)]:null),
+        !progress.tasks ? e("div",{class:"subject-completion"},
+          e("button",{type:"button",class:`btn btn-small ${done?"btn-tinted":"btn-plain"}`,
+            "aria-pressed":String(done),"aria-label":done?"Отменить отметку «Предмет сдан»":"Отметить предмет как сданный",
+            onclick:async event=>{
+              event.currentTarget.disabled=true;
+              try { await t.onStatus(subjectCompletionKey(subject.id),done?"todo":"done");T(done?"Отметка снята":"Предмет отмечен как сданный"); }
+              catch { T("Не сохранилось. Проверь интернет.",{tone:"error"});render(); }
+            }},done?"✓ Предмет сдан":"Предмет сдан"),
+          done?e("span",{class:"row-meta"},"Нажми ещё раз, чтобы отменить"):null) : null));
+    const items=Rt(state.catalog,state.progress,subject.id,state.subjectFilter);
+    w(list,items.length?O("",items.map(item=>lt({item,subject,progress:state.progress,onStatus:t.onStatus,showSubject:!1})))
+      :I({icon:done&&!progress.tasks?"check":state.subjectFilter==="tasks"?"check":"book",
+        title:done&&!progress.tasks?"Предмет сдан":state.subjectFilter==="tasks"?"Заданий нет":"Материалов нет"}));
+  }
+  render();
+  return {el:e("div",{class:"page"},header,e("div",{class:"toolbar"},filter),list),
+    update:keys=>keys.some(key=>["catalog","progress","subjectFilter"].includes(key))&&render()};
+}
+P();function announcementItems(catalog) {
   return ft(catalog).filter(item => item.type === "announcement").sort(Pt).slice(0, 3);
 }
 function renderAnnouncements(container, catalog) {

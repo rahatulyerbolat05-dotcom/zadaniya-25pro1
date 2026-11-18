@@ -84,3 +84,5 @@ transition-duration:1ms!important}}
 .admin-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
 
 .user-row .row-actions{flex-wrap:wrap;justify-content:flex-end;max-width:260px}
+
+.subject-completion{display:flex;align-items:center;flex-wrap:wrap;gap:var(--s2);margin-top:var(--s3)}
