@@ -98,7 +98,7 @@ needsTask:!1}];function ee(t){return(t||"").replace(/```[\s\S]*?```/g,s=>s.repla
 
 `);return`${(n>s*.6?a.slice(0,n):a).trimEnd()}
 […сокращено, полный текст — в файле занятия, могу прислать отдельно]`}function se(t,s){let a=s.subject?`${s.subject.code} «${s.subject.name}»`:"предмет колледжа",n=s.item.kind||nt[s.item.type||""]||"Занятие",i=s.item.date?
-` от ${V(s.item.date,!0)}`:"",r=`Я студент колледжа, 1 курс, специальность «Программное обеспечение» (группа 25-ПРО-1). Предмет: ${a}. ${n}${i}: «${s.item.title}».`,o=vt(ee(s.material||""),t==="quiz"||t==="explain"?1500:1200),
+` от ${V(s.item.date,!0)}`:"",r=`Я студент колледжа, 2 курс, специальность «Программное обеспечение» (группа 25-ПРО-1). Предмет: ${a}. ${n}${i}: «${s.item.title}».`,o=vt(ee(s.material||""),t==="quiz"||t==="explain"?1500:1200),
 l=vt(ee(s.task||""),1300),d=(c,f)=>f?`
 
 ${c}:
