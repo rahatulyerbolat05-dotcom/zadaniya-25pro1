@@ -340,13 +340,14 @@ function ce() {
     if (!subjects.length) return w(list, I({icon:"book", title:"Предметов пока нет"}));
     function row(subject) {
       const progress = mt(state.catalog, state.progress, subject.id);
-      const summary = !progress.tasks && subjectIsDone(state.progress, subject.id) ? "Предмет сдан" : progress.tasks ? `${progress.done} из ${progress.tasks} ${Y(progress.tasks,["задания","заданий","заданий"])}`
+      const completedWithoutTasks = !progress.tasks && subjectIsDone(state.progress, subject.id);
+      const summary = completedWithoutTasks ? "Предмет сдан" : progress.tasks ? `${progress.done} из ${progress.tasks} ${Y(progress.tasks,["задания","заданий","заданий"])}`
         : progress.items ? `${progress.items} ${Y(progress.items,["материал","материала","материалов"])}` : "материалов нет";
       return e("li", {class:"row"}, e("a", {class:"row-link subject-row", href:`#/s/${subject.id}`},
         e("span", {class:`subject-badge badge-${subject.color||"gray"}`, "aria-hidden":"true"}, subject.code.replace("РО ","").replace("ООМ ","ООМ ")),
         e("span", {class:"row-text"}, e("span", {class:"row-title"}, `${subject.code} · ${subject.name}`),
           e("span", {class:"row-meta"}, [subject.teacher, summary].filter(Boolean).join(" · ")),
-          progress.tasks ? ct(progress.done, progress.tasks) : null), x("chevronRight",{size:18})));
+          progress.tasks ? ct(progress.done, progress.tasks) : completedWithoutTasks ? ct(1, 1) : null), x("chevronRight",{size:18})));
     }
     const practice = subjects.filter(isPracticeSubject);
     const regular = subjects.filter(subject => !isPracticeSubject(subject));
